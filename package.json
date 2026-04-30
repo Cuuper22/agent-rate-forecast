@@ -4,8 +4,8 @@
   "description": "Skill and CLI for forecasting rate-limited coding-agent usage from local logs.",
   "type": "commonjs",
   "bin": {
-    "agent-rate-forecast": "./bin/codex-rate-forecast.js",
-    "codex-rate-forecast": "./bin/codex-rate-forecast.js"
+    "agent-rate-forecast": "bin/codex-rate-forecast.js",
+    "codex-rate-forecast": "bin/codex-rate-forecast.js"
   },
   "files": [
     "bin/codex-rate-forecast.js",
