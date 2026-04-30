@@ -16,7 +16,7 @@ The script does not treat unknown floats as truth. If there are too few samples 
 ## Use
 
 ```bash
-npx agent-rate-forecast --output agent-rate-forecast.svg --json agent-rate-forecast.json
+npx agent-rate-forecast --output agent-rate-forecast.png --json agent-rate-forecast.json
 ```
 
 For a nonstandard log location:
@@ -25,7 +25,7 @@ For a nonstandard log location:
 npx agent-rate-forecast --path /path/to/logs
 ```
 
-Codex is supported out of the box via `CODEX_HOME` or `~/.codex`. Other agents work when their JSONL logs contain a `rate_limits` object with the fields above, or when you point `--path` at exported JSONL in that shape. Percent fields are literal percentages; ratio fields are explicit ratios.
+Codex is supported out of the box via `CODEX_HOME` or `~/.codex`. Other agents work when their JSONL logs contain a `rate_limits` object with the fields above, or when you point `--path` at exported JSONL in that shape. Percent fields are literal percentages; ratio fields are explicit ratios. PNG output requires Python Pillow.
 
 ## Skill
 

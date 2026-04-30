@@ -15,7 +15,7 @@
   ],
   "scripts": {
     "test": "python -m unittest tests.test_forecast",
-    "forecast": "node ./bin/codex-rate-forecast.js --output agent-rate-forecast.svg --json agent-rate-forecast.json"
+    "forecast": "node ./bin/codex-rate-forecast.js --output agent-rate-forecast.png --json agent-rate-forecast.json"
   },
   "keywords": [
     "skill",

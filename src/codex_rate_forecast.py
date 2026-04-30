@@ -262,6 +262,124 @@ def render_svg(forecast: dict[str, Any]) -> str:
 """
 
 
+def load_font(size: int, bold: bool = False):
+    from PIL import ImageFont
+
+    candidates = [
+        "C:/Windows/Fonts/segoeuib.ttf" if bold else "C:/Windows/Fonts/segoeui.ttf",
+        "C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/System/Library/Fonts/Supplemental/Arial Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Arial.ttf",
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).exists():
+            return ImageFont.truetype(candidate, size)
+    return ImageFont.load_default(size=size)
+
+
+def text_size(draw: Any, text: str, font: Any) -> tuple[int, int]:
+    box = draw.textbbox((0, 0), text, font=font)
+    return box[2] - box[0], box[3] - box[1]
+
+
+def draw_fit_text(draw: Any, xy: tuple[int, int], text: str, font: Any, fill: str, max_width: int) -> None:
+    if text_size(draw, text, font)[0] <= max_width:
+        draw.text(xy, text, font=font, fill=fill)
+        return
+    ellipsis = "..."
+    trimmed = text
+    while trimmed and text_size(draw, trimmed + ellipsis, font)[0] > max_width:
+        trimmed = trimmed[:-1]
+    draw.text(xy, trimmed + ellipsis, font=font, fill=fill)
+
+
+def render_png(forecast: dict[str, Any], output_path: Path) -> None:
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError as exc:
+        raise RuntimeError("PNG output requires Pillow. Install with: python -m pip install pillow") from exc
+
+    width = 1400
+    panel_h = 330
+    height = 150 + max(1, len(forecast["windows"])) * (panel_h + 34)
+    image = Image.new("RGB", (width, height), "#f5f5f7")
+    draw = ImageDraw.Draw(image)
+
+    title = load_font(34, True)
+    h2 = load_font(24, True)
+    big = load_font(56, True)
+    body = load_font(19)
+    small = load_font(16)
+    tiny = load_font(14)
+
+    draw.text((64, 42), "Agent Rate Forecast", font=title, fill="#111827")
+    draw.text((64, 86), f"Generated {fmt_epoch(forecast['generated_epoch'])}", font=small, fill="#6b7280")
+
+    for idx, window in enumerate(forecast["windows"]):
+        x0 = 64
+        y0 = 130 + idx * (panel_h + 34)
+        x1 = width - 64
+        y1 = y0 + panel_h
+        draw.rounded_rectangle((x0, y0, x1, y1), radius=22, fill="#ffffff", outline="#dedee7", width=2)
+
+        label = f"{window['label']} window"
+        used = max(0.0, min(100.0, float(window["used_percent"])))
+        remaining = 100.0 - used
+        draw.text((x0 + 36, y0 + 30), label, font=h2, fill="#111827")
+        draw.text((x0 + 36, y0 + 76), f"{remaining:.1f}%", font=big, fill="#111827")
+        draw.text((x0 + 230, y0 + 104), "remaining", font=body, fill="#6b7280")
+
+        reset_text = f"Resets {fmt_epoch(window['reset_epoch'])}"
+        draw_fit_text(draw, (x1 - 455, y0 + 38), reset_text, body, "#374151", 420)
+
+        bar_x = x0 + 36
+        bar_y = y0 + 160
+        bar_w = 600
+        draw.rounded_rectangle((bar_x, bar_y, bar_x + bar_w, bar_y + 18), radius=9, fill="#e5e7eb")
+        draw.rounded_rectangle((bar_x, bar_y, bar_x + int(bar_w * used / 100.0), bar_y + 18), radius=9, fill="#22c55e")
+        draw.text((bar_x, bar_y + 34), f"{used:.1f}% used", font=small, fill="#374151")
+        draw.text((bar_x + 140, bar_y + 34), f"{remaining:.1f}% remaining", font=small, fill="#6b7280")
+
+        hit = fmt_epoch(window["hit_epoch"])
+        draw.text((x0 + 36, y0 + 250), f"Projected limit hit: {hit}", font=h2, fill="#7c3aed")
+
+        chart_x = x0 + 720
+        chart_y = y0 + 112
+        chart_w = 520
+        chart_h = 145
+        draw.line((chart_x, chart_y + chart_h, chart_x + chart_w, chart_y + chart_h), fill="#d1d5db", width=2)
+        draw.line((chart_x, chart_y, chart_x, chart_y + chart_h), fill="#e5e7eb", width=2)
+        points = window.get("sampled_points", [])
+        if len(points) >= 2:
+            xs = [float(point["observed_epoch"]) for point in points]
+            ys = [float(point["used_percent"]) for point in points]
+            x_min, x_max = min(xs), max(xs)
+            span = max(1.0, x_max - x_min)
+            mapped = []
+            for x, y in zip(xs, ys):
+                px = chart_x + int((x - x_min) / span * chart_w)
+                py = chart_y + chart_h - int(max(0.0, min(100.0, y)) / 100.0 * chart_h)
+                mapped.append((px, py))
+            if len(mapped) > 1:
+                draw.line(mapped, fill="#8b5cf6", width=4, joint="curve")
+            for px, py in mapped[-4:]:
+                draw.ellipse((px - 4, py - 4, px + 4, py + 4), fill="#8b5cf6")
+        draw.text((chart_x, chart_y + chart_h + 14), "observed usage snapshots", font=tiny, fill="#6b7280")
+
+        warning = window["warnings"][0] if window["warnings"] else "Projection is a local-log estimate."
+        draw_fit_text(
+            draw,
+            (chart_x, y0 + 282),
+            f"{window['slope_percent_per_hour']}%/hour from {window['observations']} observations. {warning}",
+            small,
+            "#6b7280",
+            chart_w,
+        )
+
+    draw_fit_text(draw, (64, height - 42), forecast["note"], small, "#6b7280", width - 128)
+    image.save(output_path)
+
+
 def print_summary(forecast: dict[str, Any]) -> None:
     print("Agent rate forecast")
     print(f"Generated: {fmt_epoch(forecast['generated_epoch'])}")
@@ -281,7 +399,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Forecast coding-agent rate limit usage from local logs.")
     parser.add_argument("--path", action="append", type=Path, default=[], help="Log file or directory. May be repeated.")
     parser.add_argument("--codex-home", type=Path, default=None, help="Backward-compatible alias for --path.")
-    parser.add_argument("--output", type=Path, default=Path("agent-rate-forecast.svg"))
+    parser.add_argument("--output", type=Path, default=Path("agent-rate-forecast.png"))
+    parser.add_argument("--svg", type=Path, default=None, help="Optional path for SVG output.")
     parser.add_argument("--json", type=Path, default=None, help="Optional path for machine-readable forecast JSON.")
     args = parser.parse_args(argv)
 
@@ -296,11 +415,18 @@ def main(argv: list[str] | None = None) -> int:
         print(f"No rate-limit events found under {searched}", file=sys.stderr)
         return 2
     forecast = build_forecast(events)
-    args.output.write_text(render_svg(forecast), encoding="utf-8")
+    if args.output.suffix.lower() == ".svg":
+        args.output.write_text(render_svg(forecast), encoding="utf-8")
+    else:
+        render_png(forecast, args.output)
+    if args.svg:
+        args.svg.write_text(render_svg(forecast), encoding="utf-8")
     if args.json:
         args.json.write_text(json.dumps(forecast, indent=2), encoding="utf-8")
     print_summary(forecast)
-    print(f"\nPlot: {args.output.resolve()}")
+    print(f"\nImage: {args.output.resolve()}")
+    if args.svg:
+        print(f"SVG: {args.svg.resolve()}")
     if args.json:
         print(f"JSON: {args.json.resolve()}")
     return 0

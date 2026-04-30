@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from src.codex_rate_forecast import build_forecast, load_events_from_paths
+from src.codex_rate_forecast import build_forecast, load_events_from_paths, render_png
 
 
 def write_session(path: Path, rows: list[dict]) -> None:
@@ -116,6 +116,33 @@ class ForecastTests(unittest.TestCase):
 
         self.assertEqual(forecast["windows"][0]["reset_epoch"], 1777600000)
         self.assertNotEqual(forecast["windows"][0]["reset_epoch"], 1777500000 + 300 * 60)
+
+    def test_render_png_writes_real_png_image(self):
+        forecast = build_forecast(
+            [
+                {
+                    "observed_epoch": 1777500000,
+                    "used_percent": 20.0,
+                    "window_minutes": 300,
+                    "reset_epoch": 1777518000,
+                    "window_label": "5h",
+                    "source": "fixture",
+                },
+                {
+                    "observed_epoch": 1777500600,
+                    "used_percent": 25.0,
+                    "window_minutes": 300,
+                    "reset_epoch": 1777518000,
+                    "window_label": "5h",
+                    "source": "fixture",
+                },
+            ],
+            now_epoch=1777500900,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "forecast.png"
+            render_png(forecast, output)
+            self.assertEqual(output.read_bytes()[:8], b"\x89PNG\r\n\x1a\n")
 
 
 if __name__ == "__main__":
