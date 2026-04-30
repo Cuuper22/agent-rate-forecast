@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+tests/
+codex-rate-forecast.svg
+codex-rate-forecast.json
+agent-rate-forecast.svg
+agent-rate-forecast.json

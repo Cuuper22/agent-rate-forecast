@@ -1,0 +1,36 @@
+{
+  "name": "agent-rate-forecast",
+  "version": "0.1.0",
+  "description": "Skill and CLI for forecasting rate-limited coding-agent usage from local logs.",
+  "type": "commonjs",
+  "bin": {
+    "agent-rate-forecast": "./bin/codex-rate-forecast.js",
+    "codex-rate-forecast": "./bin/codex-rate-forecast.js"
+  },
+  "files": [
+    "bin/codex-rate-forecast.js",
+    "src/*.py",
+    "skills/rate-limit-forecast/SKILL.md",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "python -m unittest tests.test_forecast",
+    "forecast": "node ./bin/codex-rate-forecast.js --output agent-rate-forecast.svg --json agent-rate-forecast.json"
+  },
+  "keywords": [
+    "skill",
+    "rate-limit",
+    "forecast",
+    "coding-agents",
+    "agent-skills"
+  ],
+  "author": "Cuuper22",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cuuper22/agent-rate-forecast.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
