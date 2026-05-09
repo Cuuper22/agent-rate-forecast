@@ -8,6 +8,12 @@ I kept hitting coding-agent limits mid-run and wanted a boring answer to a pract
 
 This tool is intentionally conservative. It prefers documented `rate_limits` fields, fits a simple slope only when there is enough signal, and says "unknown" when the evidence is thin. A wrong clean answer is worse than a fuzzy honest one.
 
+## What This Shows
+
+- Treats local logs as evidence, not as an excuse to hallucinate quota math.
+- Ships the same core as both an npm CLI and an agent skill.
+- Keeps the forecast readable: a PNG for humans, JSON for automation, warnings when the estimate is weak.
+
 It prefers documented snapshot fields when they are present:
 
 - `rate_limits.<bucket>.used_percent`
